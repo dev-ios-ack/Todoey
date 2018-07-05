@@ -9,7 +9,7 @@
 import UIKit
 
 class TodoListViewController: UITableViewController {
-    let itemArray = ["Find Mike", "Buy Eggos", "Destroy Demogorgon"]
+    var itemArray = ["Find Mike", "Buy Eggos", "Destroy Demogorgon"]
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -42,5 +42,32 @@ class TodoListViewController: UITableViewController {
         
     }
 
+    //MARK: - Add New Items
+    @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+        /// AlertController の TextField を Grab するための変数
+        var textField = UITextField()
+        
+        let alert = UIAlertController(title: "Add New Todoey Item", message: "", preferredStyle: .alert)
+        
+        let action = UIAlertAction(title: "Add Item", style: .default) { (action) in
+            // What will happen once the user clicks the Add Item button on our UIAlert
+            self.itemArray.append(textField.text!)
+            self.tableView.reloadData()
+        }
+        
+        //
+        alert.addTextField { (alertTextField) in
+            alertTextField.placeholder = "Create new item"
+            // alertController にテキストフィールドが表示された段階でクロージャの外部スコープで使えるTextField変数に代入する
+            textField = alertTextField
+        }
+        
+        // Add Item Button をアラートに表示する
+        alert.addAction(action)
+        
+        present(alert, animated: true, completion: nil)
+        
+    }
+    
 }
 
