@@ -8,12 +8,14 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController {
+class TodoListViewController: SwipeTableViewController {
     @IBOutlet weak var searchBar: UISearchBar!
     //var itemArray = ["Find Mike", "Buy Eggos", "Destroy Demogorgon", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]
     var todoItems: Results<Item>?
     let realm = try! Realm()
+    
     
     var selectedCategory: Category?{
         didSet{
@@ -24,31 +26,71 @@ class TodoListViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
-
         searchBar.delegate = self
+        tableView.separatorStyle = .none
+        
+    }
+    
+    // NavigationController 関連の処理は viewWillApper で行う必要がある（DidLoadだとNavigationController が nil であるため）
+    override func viewWillAppear(_ animated: Bool) {
+        title = selectedCategory?.name
+        guard let colorHex = selectedCategory?.backgroundColor else { fatalError() }
+        updateNavBar(withHexCode: colorHex)
+        
     }
 
+    override func viewWillDisappear(_ animated: Bool) {
+        updateNavBar(withHexCode: "1D9BF6")
+    }
+    
+    //MARK: - Nav Bar Setup Methods
+    func updateNavBar(withHexCode colorHexCode: String){
+        guard let navBar = navigationController?.navigationBar else { fatalError("navigation controller dose not exist.") }
+        guard let navBarColor = UIColor(hexString: colorHexCode) else { fatalError() }
+
+        navBar.barTintColor = navBarColor   // NavBar の背景色
+        navBar.tintColor = ContrastColorOf(navBarColor, returnFlat: true)   // NavBar 戻るボタンの色
+        navBar.largeTitleTextAttributes = [ NSAttributedStringKey.foregroundColor: ContrastColorOf(navBarColor, returnFlat: true)]  // NabBar タイトルの文字色
+        searchBar.barTintColor = navBarColor // 検索バーの背景色
+    }
+    
     //MARK: - Tableview Datasource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return todoItems?.count ?? 1
     }
     
+//    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+//        let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItemCell", for: indexPath)
+//
+//        if let item = todoItems?[indexPath.row] {
+//            cell.textLabel?.text = item.title
+//            // Ternary Operator(三項演算子）
+//            cell.accessoryType = item.done ? .checkmark : .none
+//        }else{
+//            cell.textLabel?.text = "No Items Added."
+//        }
+//
+//        return cell
+//    }
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItemCell", for: indexPath)
-
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
+            if let color = UIColor(hexString: selectedCategory!.backgroundColor)?.darken(byPercentage: CGFloat(indexPath.row) / CGFloat(todoItems!.count) ){
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            print("Version1: ", CGFloat(indexPath.row / todoItems!.count))
+            print("Version2: ", CGFloat(indexPath.row) / CGFloat(todoItems!.count))
             // Ternary Operator(三項演算子）
             cell.accessoryType = item.done ? .checkmark : .none
         }else{
             cell.textLabel?.text = "No Items Added."
         }
-        
         return cell
     }
-    
+
     //MARK: - Tableview Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 
@@ -119,6 +161,21 @@ class TodoListViewController: UITableViewController {
         todoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
 
         tableView.reloadData()
+    }
+
+    //MARK: - Delete Data From Swipe
+    override func updateModel(at indexPath: IndexPath) {
+        super.updateModel(at: indexPath)
+        
+        if let itemForDeletion = self.todoItems?[indexPath.row]{
+            do{
+                try self.realm.write {
+                    self.realm.delete(itemForDeletion)
+                }
+            } catch {
+                print("Error deleting todoitem\(error)")
+            }
+        }
     }
 
 }
